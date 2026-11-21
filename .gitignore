@@ -1,0 +1,4 @@
+# Laid by Claude Code when it loads a mod: its own API types, regenerated per build.
+.claude-plugin/types/
+node_modules/
+.DS_Store
