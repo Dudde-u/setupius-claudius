@@ -1,0 +1,1 @@
+{ "name": "usage-band", "version": "0.2.0", "description": "A band above the prompt: what needs you first (a limit nearly spent, context near auto-compact), then context and plan limits with resets, model, effort, cost and this branch's PR", "types": "./types/index.d.ts" }
