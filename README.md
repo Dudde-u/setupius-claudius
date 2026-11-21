@@ -18,6 +18,23 @@ claude plugin test mods/<name>
 npx -y -p typescript@5 tsc -p mods/<name> --noEmit   # once the types are laid
 ```
 
+### pr-pane
+
+A pane beside the chat with the repo's open PRs (from `gh`), their checks and review
+state, and the current branch. It opens when a session starts and refreshes every
+minute. `/prs` opens and refreshes it, and `r` refreshes it.
+
+### sessions-pane
+
+A pane beside the chat with each background session working on this repo: its state,
+the PRs and worktrees it owns, the subagents and commands running for it, and the open
+PRs and worktrees no session owns. A session's last `owns:` line tells the pane what
+it owns and what comes next.
+
+- **Refresh:** session states every 3 seconds; worktrees and PRs (git, `gh`) every minute.
+- **Keys:** `/sessions` opens and refreshes it, `d` shows or hides finished sessions,
+  `w` shows or hides worktrees, and `r` refreshes it.
+
 ### usage-band
 
 A band above the prompt. What needs you comes first, then the figures:
