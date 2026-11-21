@@ -1,0 +1,1 @@
+{ "name": "pr-pane", "version": "0.1.0", "description": "A pane beside the chat with the repo's open PRs, their checks, and the current branch", "types": "./types/index.d.ts" }
