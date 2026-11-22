@@ -208,6 +208,56 @@ test('a blocked session needs the user, and a narrow pane drops the card borders
   }
 })
 
+test('a blocked session with a subagent running is working; a stale fan entry is not', async ($, on) => {
+  // The shape of real loop sessions: blocked, with an agent in fan
+  // and in flight, and a next: that is partly the user's.
+  const agent = { id: 'zzz', kind: 'agent', label: 'review the login fix' }
+  const jobs: Record<string, object> = {
+    l1l1l1l1: {
+      ...STATES.q1q1q1q1, name: 'loop one', state: 'blocked', fan: [agent],
+      inFlight: { tasks: 2, kinds: ['local_agent', 'session_cron'] },
+    },
+    s2s2s2s2: {
+      ...STATES.q1q1q1q1, name: 'stuck one', state: 'blocked', fan: [agent],
+      inFlight: { tasks: 0, kinds: [] },
+    },
+  }
+  const timeline = say('Batch 3 is up.\n\nowns: nothing · next: you merge #42; I wait on the review agent')
+  on('command.register', (_, e) => ({ value: { command: e.name } }))
+  on('ui.open', () => ({ value: { isPlaced: true } }))
+  on('clock.now', () => ({ value: Date.parse('2026-11-21T17:31:00Z') }))
+  on('env.get', () => ({ value: HOME }))
+  on('process.run', (_, e) => ((e.argv as readonly string[])[0] === 'git' ? ok(WORKTREES) : ok('[]')))
+  on('fs.list', () => ({
+    value: Object.keys(jobs).map(name => ({ name, kind: 'dir' as const, size: 0, mtimeMs: 0, isLink: false })),
+  }))
+  on('fs.stat', () => ({ value: { kind: 'file' as const, size: timeline.length, mtimeMs: 0, isLink: false } }))
+  on('fs.read', (_, e) => {
+    const path = String(e.path)
+    if (path.endsWith('/timeline.jsonl')) return { value: timeline }
+    return { value: JSON.stringify(jobs[jobOf(path)]) }
+  })
+
+  await $.command.run({ command: 'sessions', args: '', origin: { kind: 'composer' }, presentation: { isFullscreen: true, columns: 160 } })
+  const ui = await $.ui.mount({ ...PANE, props: { ...PANE.props, bodyColumns: 80 }, surface: 'terminal' })
+  const words = await page(ui)
+  expect(words).toMatch(/◆ 1 needs you/)
+  expect(words).toMatch(/● 1 working/)
+  // The stuck one (no agent in flight) comes first and needs you; the loop is working,
+  // its next: kept in view as plain text.
+  const at = (s: string) => words.indexOf(s)
+  expect(at('loop one')).toBeGreaterThan(at('stuck one'))
+  const stuck = words.slice(at('stuck one'), at('loop one'))
+  expect(stuck).toMatch(/needs you/)
+  expect(stuck).toMatch(/→ you merge #42/)
+  const loop = words.slice(at('loop one'))
+  expect(loop).toMatch(/working/)
+  expect(loop).not.toMatch(/needs you|→/)
+  expect(loop).toMatch(/1 agent running/)
+  expect(loop).toMatch(/next: you merge #42; I wait on the review agent/)
+  await ui.unmount()
+})
+
 test('a change of state shows on the quick tick, without git or gh', async ($, on) => {
   const clock = mock.clock(on, { now: Date.parse('2026-11-21T18:01:00Z') })
   const state: Record<string, unknown> = { ...STATES.ec922f6f, state: 'blocked' }
