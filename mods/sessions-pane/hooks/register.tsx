@@ -40,6 +40,7 @@ type Job = {
   originCwd?: string
   worktreePath?: string
   fan?: Fan[]
+  inFlight?: { kinds?: unknown }
   children?: { id?: unknown; kind?: unknown }[]
   owns: string
 }
@@ -129,6 +130,21 @@ function needsUser(state: string, next: string, open: Set<number>, owned: number
   return named.length ? named.some(n => open.has(n)) : owned > 0
 }
 
+/**
+ * A subagent is still running for the session, so it counts as working whatever its
+ * state says: it wakes itself when the agent reports back. A loop waiting on an agent
+ * often ends its turn with a `next:` that is partly yours (`you merge #42; I wait on
+ * the review agent`), and the job list then calls it blocked. Running means a fan agent
+ * with no `doneAt`, and `inFlight.kinds` listing `local_agent`, so a stale fan
+ * entry can't hide a real block.
+ */
+function agentRunning(j: Job, running: Fan[]): boolean {
+  if (!running.some(f => f.kind === 'agent')) return false
+  const flight = j.inFlight
+  const kinds = flight && typeof flight === 'object' && !Array.isArray(flight) ? flight.kinds : undefined
+  return Array.isArray(kinds) && kinds.includes('local_agent')
+}
+
 function join(jobs: Job[], trees: Tree[], prs: Pr[], main: string) {
   const byPath = new Map(trees.map(t => [t.path, t]))
   const byBranch = new Map<string, Tree>()
@@ -169,7 +185,7 @@ function join(jobs: Job[], trees: Tree[], prs: Pr[], main: string) {
       if (t && !mine.includes(t)) mine.push(t)
     }
 
-    const state = j.state ?? '?'
+    const state = agentRunning(j, running) ? 'working' : (j.state ?? '?')
     const next = nextOf(j.owns)
     sessions.push({
       id: j.id,
